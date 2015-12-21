@@ -12,10 +12,10 @@
 #include <algorithm>
 #include <limits.h>
 #include <stdint.h>
-
+#include <string.h>
 class Mat {
-    std::vector<uint32_t> data;
 public:
+    std::vector<uint32_t> data;
     int channels;
     int rows;
     int cols;
@@ -58,10 +58,10 @@ public:
         data.clear();
     }
 
-    uint32_t& at(int row, int col) {
-        if(row >= 0 && row < rows && col >= 0 && col < cols) {
+    inline uint32_t& at(int row, int col) {
+        //if(row >= 0 && row < rows && col >= 0 && col < cols) {
             return data[row*cols + col];
-        }
+        //}
     }
 
     static Mat * imread(char* filename) //Achtung! BMP only!!
@@ -136,7 +136,7 @@ public:
         fwrite(bmpinfoheader,1,40,f);
         for(int  i=0; i<rows; i++)
         {
-            fwrite(img+(cols*(rows-i-1)*3),3,cols,f);
+            fwrite(img+(cols*(i)*3),3,cols,f);
             fwrite(bmppad,1,(4-(cols*3)%4)%4,f);
         }
         fclose(f);
@@ -227,25 +227,25 @@ public:
                 uint32_t pb = 0;
 
                 pr = getR(this->at(r*2,c*2));
-                pr += getR(this->at(r*2+1,c*2));
-                pr += getR(this->at(r*2,c*2+1));
-                pr += getR(this->at(r*2+1,c*2+1));
-                pr /= 4;
+                //pr += getR(this->at(r*2+1,c*2));
+                //pr += getR(this->at(r*2,c*2+1));
+                //pr += getR(this->at(r*2+1,c*2+1));
+                //pr /= 4;
                 pr &= 0xff;
 
 
                 pg = getG(this->at(r*2,c*2));
-                pg += getG(this->at(r*2+1,c*2));
-                pg += getG(this->at(r*2,c*2+1));
-                pg += getG(this->at(r*2+1,c*2+1));
-                pg /= 4;
+                //pg += getG(this->at(r*2+1,c*2));
+                //pg += getG(this->at(r*2,c*2+1));
+                //pg += getG(this->at(r*2+1,c*2+1));
+                //pg /= 4;
                 pg &= 0xff;
 
                 pb = getB(this->at(r*2,c*2));
-                pb += getB(this->at(r*2+1,c*2));
-                pb += getB(this->at(r*2,c*2+1));
-                pb += getB(this->at(r*2+1,c*2+1));
-                pb /= 4;
+                //pb += getB(this->at(r*2+1,c*2));
+                //pb += getB(this->at(r*2,c*2+1));
+                //pb += getB(this->at(r*2+1,c*2+1));
+                //pb /= 4;
                 pb &= 0xff;
 
 
@@ -270,20 +270,20 @@ public:
     std::vector<Mat *> domainSet;
     std::vector<Mat *> domainSetScaled;
 
-    /* [cxHigh]|[cxLow]|[cyHigh]|[cyLow]|[modif]|[offR]|[offG]|[offB] */
+    /* [cxHigh]|[cxLow]|[cyHigh]|[cyLow]|[modif]|[offR_high]|[offR_low]|[offG_high]|[offG_low]|[offB_high]|[offB_low] */
 
 
     std::vector<unsigned char> rawCoefs;
 
     RLFIC(Mat * _image) {
-        domainSize = 16;
-        domainOffset = 4;
+        domainSize = 8;
+        domainOffset = 2;
 
         image = _image;
     }
 
     RLFIC() {
-        domainSize = 16;
+        domainSize = 8;
         domainOffset = 2;
 
     }
@@ -300,7 +300,7 @@ public:
     float getDist(Mat * dom, Mat * reg);
     void scaleDomainSet();
     void genCoefs();
-    uint32_t getColorOffset(Mat * domSc, Mat * reg);
+    std::vector<int> getColorOffset(Mat * domSc, Mat * reg);
     void decompress();
     void decompressIter();
 };

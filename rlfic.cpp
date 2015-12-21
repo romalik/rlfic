@@ -23,8 +23,8 @@ void RLFIC::generateDomainSet() {
 }
 
 void RLFIC::generateRegionSet() {
-    for(int c = 0; c<image->cols-(domainSize/2); c+=(domainSize/2)) {
-        for(int r = 0; r<image->rows-(domainSize/2); r+=(domainSize/2)) {
+    for(int r = 0; r<image->rows; r+=(domainSize/2)) {
+        for(int c = 0; c<image->cols; c+=(domainSize/2)) {
             Mat * croppedImg = image->crop(r,c,domainSize/2, domainSize/2);
             croppedImg->attrs = 0;
             regionSet.push_back(croppedImg);
@@ -61,40 +61,6 @@ void RLFIC::scaleDomainSet() {
 }
 
 float RLFIC::getDist(Mat * domScaled, Mat * reg) {
-    /*
-    if((domScaled->cols != reg->cols) || (domScaled->rows != reg->rows) || (domScaled->channels != reg->channels)) {
-        exit(1);
-    }
-    */
-
-    /*
-    float err = 0;
-    for(int c = 0; c<reg->cols; c++) {
-        for(int r = 0; r<reg->rows; r++) {
-            uint32_t dR, dG, dB, rR, rG, rB;
-            uint32_t dC, rC;
-            dC = domScaled->at(r,c);
-            dR = Mat::getR(dC);
-            dG = Mat::getG(dC);
-            dB = Mat::getB(dC);
-
-            rC = reg->at(r,c);
-            rR = Mat::getR(rC);
-            rG = Mat::getG(rC);
-            rB = Mat::getB(rC);
-
-            err += (dR-rR)*(dR-rR)
-                    + (dG-rG)*(dG-rG)
-                    + (dB-rB)*(dB-rB);
-
-        }
-    }
-    */
-    //err = sqrt(err);
-
-    float err = 0;
-
-
     int sdR = 0, sdB = 0, sdG = 0;
     int srR = 0, srB = 0, srG = 0;
 
@@ -176,52 +142,32 @@ void RLFIC::genCoefs() {
         int cx = dom->cx;
         int cy = dom->cy;
         char modif = dom->attrs;
-        uint32_t cScale = getColorOffset(dom, reg);
+        std::vector<int> cScale = getColorOffset(dom, reg);
 
         rawCoefs.push_back((cx&0xff00)>>8);
         rawCoefs.push_back((cx&0xff));
         rawCoefs.push_back((cy&0xff00)>>8);
         rawCoefs.push_back((cy&0xff));
         rawCoefs.push_back(modif);
-        rawCoefs.push_back(Mat::getR(cScale));
-        rawCoefs.push_back(Mat::getG(cScale));
-        rawCoefs.push_back(Mat::getB(cScale));
+
+        rawCoefs.push_back((cScale[0] & 0xff00) >> 8);
+        rawCoefs.push_back((cScale[0] & 0xff));
+        rawCoefs.push_back((cScale[1] & 0xff00) >> 8);
+        rawCoefs.push_back((cScale[1] & 0xff));
+        rawCoefs.push_back((cScale[2] & 0xff00) >> 8);
+        rawCoefs.push_back((cScale[2] & 0xff));
+
     }
 
 
 }
 
-uint32_t RLFIC::getColorOffset(Mat *domSc, Mat *reg) {
-    /*
-    for(int r = 0; r<reg->rows; r++) {
-        for(int c = 0; c<reg->cols; c++) {
-            dC = domSc->at(r,c);
-            dR = Mat::getR(dC);
-            dG = Mat::getG(dC);
-            dB = Mat::getB(dC);
+std::vector<int> RLFIC::getColorOffset(Mat *domSc, Mat *reg) {
 
-            rC = reg->at(r,c);
-            rR = Mat::getR(rC);
-            rG = Mat::getG(rC);
-            rB = Mat::getB(rC);
-
-            tR = 0.75*dR - rR;
-            tG = 0.75*dG - rG;
-            tB = 0.75*dB - rB;
-
-
-        }
-    }
-
-    tR /= reg->rows*reg->cols;
-    tG /= reg->rows*reg->cols;
-    tB /= reg->rows*reg->cols;
-
-*/
     int sdR=0, sdG=0, sdB=0, srR=0, srG=0, srB=0;
     for(int c = 0; c<reg->cols; c++) {
         for(int r = 0; r<reg->rows; r++) {
-            uint32_t dR, dG, dB, rR, rG, rB;
+            int dR, dG, dB, rR, rG, rB;
             uint32_t dC, rC;
             dC = domSc->at(r,c);
             dR = Mat::getR(dC);
@@ -254,6 +200,7 @@ uint32_t RLFIC::getColorOffset(Mat *domSc, Mat *reg) {
     tR = static_cast<int>(qR);
     tG = static_cast<int>(qG);
     tB = static_cast<int>(qB);
+/*
     if(tR > 127) tR = 127;
     if(tG > 127) tG = 127;
     if(tB > 127) tB = 127;
@@ -261,22 +208,28 @@ uint32_t RLFIC::getColorOffset(Mat *domSc, Mat *reg) {
     if(tG < -127) tG = -127;
     if(tB < -127) tB = -127;
     uint32_t res = ((tR&0xff) << 16) | ((tG&0xff) << 8) | (tB&0xff);
+*/
+    std::vector<int> res;
+    res.push_back(tR);
+    res.push_back(tG);
+    res.push_back(tB);
+
     return res;
 
 }
 
 void RLFIC::decompressIter() {
     Mat * newImage = new Mat(*image);
-    for(int i = 0; i<rawCoefs.size(); i+=8) {
+    for(int i = 0; i<rawCoefs.size(); i+=11) {
         int dx = (rawCoefs[i] << 8) | rawCoefs[i+1];
         int dy = (rawCoefs[i+2] << 8) | rawCoefs[i+3];
         char modif = rawCoefs[i+4];
-        char offR = rawCoefs[i+5];
-        char offG = rawCoefs[i+6];
-        char offB = rawCoefs[i+7];
+        int offR = static_cast<int16_t>((rawCoefs[i+5] << 8) | rawCoefs[i+6]);
+        int offG = static_cast<int16_t>((rawCoefs[i+7] << 8) | rawCoefs[i+8]);
+        int offB = static_cast<int16_t>((rawCoefs[i+9] << 8) | rawCoefs[i+10]);
 
         int regsInLine = image->cols / (domainSize/2);
-        int cReg = i/8;
+        int cReg = i/11;
 
         int cLine = cReg / regsInLine;
         int cCol = cReg % regsInLine;
@@ -311,12 +264,17 @@ void RLFIC::decompressIter() {
 
                 //ImageN(dy+r, dx+c) = (image(ry+r/2, rx+c/2) + (offR, offG, offB))/0.75;
 
-                uint32_t dR = (Mat::getR(dom->at(r, c))*0.75 + offR);
-                uint32_t dG = (Mat::getG(dom->at(r, c))*0.75 + offG);
-                uint32_t dB = (Mat::getB(dom->at(r, c))*0.75 + offB);
+                int dR = (static_cast<int>(Mat::getR(dom->at(r, c)))*0.75 - offR);
+                int dG = (static_cast<int>(Mat::getG(dom->at(r, c)))*0.75 - offG);
+                int dB = (static_cast<int>(Mat::getB(dom->at(r, c)))*0.75 - offB);
+
                 if(dR > 255) dR = 255;
                 if(dG > 255) dG = 255;
                 if(dB > 255) dB = 255;
+                if(dR < 0) dR = 0;
+                if(dG < 0) dG = 0;
+                if(dB < 0) dB = 0;
+
 
                 newImage->at(ry+r,rx+c) = ((dR&0xff)<<16) | ((dG&0xff)<<8) | (dB&0xff);
 
@@ -329,9 +287,9 @@ void RLFIC::decompressIter() {
 
 void RLFIC::decompress() {
     for(int i = 0; i<150; i++) {
-        decompressIter();
         char buf[100];
         sprintf(buf,"iter_%d.bmp", i);
         image->imwrite(buf);
+        decompressIter();
     }
 }

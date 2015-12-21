@@ -63,6 +63,8 @@ int main(int argc, char ** argv) {
         mode = MODE_COMPRESS;
     } else if(!strcmp(argv[1], "-d")) {
         mode = MODE_DECOMPRESS;
+    } else if(!strcmp(argv[1], "-t")) {
+        mode = 100500;
     } else {
         badcommand(argv);
     }
@@ -90,8 +92,16 @@ int main(int argc, char ** argv) {
     } else if(mode == MODE_DECOMPRESS) {
         RLFIC rlfic;
         rlfic.image = new Mat(512,512,3);
+        for(int i = 0; i<rlfic.image->data.size(); i++) {
+            rlfic.image->data[i] = 0x01010101*i;
+        }
+
         loadFileToMem(argv[2], rlfic.rawCoefs);
         rlfic.decompress();
+    } else if(mode == 100500) {
+        RLFIC rlfic(Mat::imread(argv[2]));
+        rlfic.image->imwrite(argv[3]);
+
     }
     return 0;
 }
